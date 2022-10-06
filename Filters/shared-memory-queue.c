@@ -40,15 +40,15 @@ struct video_queue {
 
 void nv12_do_scale(nv12_scale_t* s, uint8_t* dst, const uint8_t* src)
 {
-	memcpy(dst, src, s->src_cx * s->src_cy * 3 / 2);
-	//memcpy(dst, src, s->src_cx * s->src_cy * 3);
+	//memcpy(dst, src, s->src_cx * s->src_cy * 3 / 2);
+	memcpy(dst, src, s->src_cx * s->src_cy * 3);
 }
 
 video_queue_t* video_queue_create(uint32_t cx, uint32_t cy, uint64_t interval)
 {
 	struct video_queue vq = { 0 };
 	struct video_queue* pvq;
-	DWORD frame_size = cx * cy * 3 / 2;
+	DWORD frame_size = cx * cy * 3;
 	uint32_t offset_frame[3];
 	DWORD size;
 
@@ -166,23 +166,6 @@ void video_queue_get_info(video_queue_t* vq, uint32_t* cx, uint32_t* cy,
 
 #define get_idx(inc) ((unsigned long)inc % 3)
 
-void video_queue_write(video_queue_t* vq, uint8_t** data, uint32_t* linesize,
-	uint64_t timestamp)
-{
-	struct queue_header* qh = vq->header;
-	long inc = ++qh->write_idx;
-
-	unsigned long idx = get_idx(inc);
-	size_t size = linesize[0] * qh->cy;
-
-	*vq->ts[idx] = timestamp;
-	memcpy(vq->frame[idx], data[0], size);
-	memcpy(vq->frame[idx] + size, data[1], size / 2);
-
-	qh->read_idx = inc;
-	qh->state = SHARED_QUEUE_STATE_READY;
-}
-
 enum queue_state video_queue_state(video_queue_t* vq)
 {
 	if (!vq) {
@@ -227,6 +210,6 @@ bool video_queue_read(video_queue_t* vq, nv12_scale_t* scale, void* dst,
 
 	*ts = *vq->ts[idx];
 
-	nv12_do_scale(scale, dst, vq->frame[idx]);
+	memcpy(dst, vq->frame[idx], scale->src_cy * scale->src_cx * 3);
 	return true;
 }
