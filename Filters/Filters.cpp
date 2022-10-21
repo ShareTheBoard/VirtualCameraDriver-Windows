@@ -58,7 +58,7 @@ CUnknown* WINAPI CVCam::CreateInstance(LPUNKNOWN lpunk, HRESULT* phr)
 }
 
 CVCam::CVCam(LPUNKNOWN lpunk, HRESULT* phr) :
-    CSource(NAME(name.c_str()), lpunk, CLSID_VirtualCam)
+    CSource(name.c_str(), lpunk, CLSID_VirtualCam)
 {
     ASSERT(phr);
     CAutoLock cAutoLock(&m_cStateLock);
@@ -81,7 +81,7 @@ HRESULT CVCam::QueryInterface(REFIID riid, void** ppv)
 // all the stuff.
 //////////////////////////////////////////////////////////////////////////
 CVCamStream::CVCamStream(HRESULT* phr, CVCam* pParent, LPCWSTR pPinName) :
-    CSourceStream(NAME(name.c_str()), phr, pParent, pPinName), m_pParent(pParent)
+    CSourceStream(name.c_str(), phr, pParent, pPinName), m_pParent(pParent)
 {
     // Set the default media type as 320x240x24@15
     GetMediaType(4, &m_mt);
