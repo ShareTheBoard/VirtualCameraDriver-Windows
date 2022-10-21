@@ -1,0 +1,33 @@
+#include <winver.h>
+#include "version.h"
+
+#define stringize( x )        stringizei( x )
+#define stringizei( x )       #x
+
+
+#ifdef _WIN32
+  LANGUAGE 0x9,0x1
+  #pragma code_page( 1252 )
+#endif
+
+1 VERSIONINFO
+ FILEVERSION    RC_FILEVERSION
+ PRODUCTVERSION RC_PRODUCTVERSION
+ FILETYPE       VFT_DLL
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "FileDescription",  "STB Virtual Camera Filter"
+      VALUE "FileVersion",      stringize( RC_FILEVERSION )
+      VALUE "LegalCopyright",   ""
+      VALUE "ProductName",      "STB Virtual Camera"
+      VALUE "ProductVersion",   stringize( RC_PRODUCTVERSION )
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

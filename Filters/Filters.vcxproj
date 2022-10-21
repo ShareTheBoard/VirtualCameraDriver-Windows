@@ -22,6 +22,7 @@
     <SccProjectName>Filters</SccProjectName>
     <ProjectGuid>{A3EA5530-667F-471F-8032-9D3D34E0061D}</ProjectGuid>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>VirtualCameraFilter</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -71,18 +72,22 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(ProjectDir)..\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\bin\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <TargetName>$(ProjectName)-$(Platform)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(ProjectDir)..\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\bin\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <TargetName>$(ProjectName)-$(Platform)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(ProjectDir)..\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\bin\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(ProjectDir)..\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\bin\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -211,7 +216,7 @@
     <ClCompile Include="shared-memory-queue.c" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="Filters.def" />
+    <CustomBuild Include="VirtualCameraFilter.def" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Filters.h" />
@@ -219,7 +224,45 @@
     <ClInclude Include="Placeholder.h" />
     <ClInclude Include="shared-memory-queue.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="VirtualCameraFilter.rc" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\MSBuildTasks.1.5.0.235\build\MSBuildTasks.targets" Condition="Exists('..\packages\MSBuildTasks.1.5.0.235\build\MSBuildTasks.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>Ten projekt zawiera odwołania do pakietów NuGet, których nie ma na tym komputerze. Użyj przywracania pakietów NuGet, aby je pobrać. Aby uzyskać więcej informacji, zobacz http://go.microsoft.com/fwlink/?LinkID=322105. Brakujący plik: {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\MSBuildTasks.1.5.0.235\build\MSBuildTasks.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\MSBuildTasks.1.5.0.235\build\MSBuildTasks.targets'))" />
+  </Target>
+  <Import Project="..\packages\MSBuildTasks.1.5.0.235\tools\MSBuild.Community.Tasks.Targets" />
+  <Target Name="GetGitVersion" AfterTargets="EnsureNuGetPackageBuildImports">
+    <GitDescribe Always="true">
+      <Output TaskParameter="CommitCount" PropertyName="CommitCount" />
+      <Output TaskParameter="CommitHash" PropertyName="CommitHash" />
+      <Output TaskParameter="Tag" PropertyName="Tag" />
+    </GitDescribe>
+    <GitCommits>
+      <Output TaskParameter="CommitsCount" PropertyName="GlobalCommitCount" />
+    </GitCommits>
+    <ItemGroup>
+      <VersionFilePath Include="version.h" />
+    </ItemGroup>
+    <PropertyGroup>
+      <FileVersion Condition="'$(Tag)' == ''"> $([System.String]::Format('#define RC_FILEVERSION 1.0.0.{0}', '$(GlobalCommitCount)')) </FileVersion>
+      <ProductVersion Condition="'$(Tag)' == ''"> $([System.String]::Format('#define RC_PRODUCTVERSION 1.0.0.{0}', '$(GlobalCommitCount)')) </ProductVersion>
+      <FileVersion Condition="'$(Tag)' != ''"> $([System.String]::Format('#define RC_FILEVERSION {0}.{1}', '$(Tag), '$(CommitCount)'))</FileVersion>
+      <ProductVersion Condition="'$(Tag)' != ''"> $([System.String]::Format('#define RC_PRODUCTVERSION {0}.{1}', '$(Tag)', '$(CommitCount)')) </ProductVersion>
+    </PropertyGroup>
+    <WriteLinesToFile File="@(VersionFilePath)" Lines="$(FileVersion)" Overwrite="true" Encoding="Unicode" />
+    <WriteLinesToFile File="@(VersionFilePath)" Lines="$(ProductVersion)" Overwrite="false" Encoding="Unicode" />
+    <Message Importance="High" Text="Tag: $(Tag), CommitHash: $(CommitHash), CommitCount: $(CommitCount)" />
+	<Message Importance="High" Text="ProductVersion: $(ProductVersion)" />
+	<Message Importance="High" Text="FileVersion: $(FileVersion)" />
+  </Target>
 </Project>

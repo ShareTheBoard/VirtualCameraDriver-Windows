@@ -2,3 +2,6 @@
 /.vs
 /bin
 Bin
+version.h
+packages
+*.aps
