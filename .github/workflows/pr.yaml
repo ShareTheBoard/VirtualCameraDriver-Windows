@@ -1,0 +1,48 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        arch:
+          - x64
+          - win32
+        configuration:
+          - Debug
+          - Release
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Setup C++ environment for ${{ matrix.arch }} 
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+
+      - name: Build solution for ${{ matrix.arch }} ${{  matrix.configuration }}
+        run: |
+          nuget restore
+          msbuild vcam.sln /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.arch }}
+      
+      - name: Collect binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries-${{ matrix.arch }}-${{ matrix.configuration }}
+          path: |
+            Bin/**/${{ matrix.configuration }}/*.dll
+            Bin/**/${{ matrix.configuration }}/*.pdb
