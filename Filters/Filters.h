@@ -4,16 +4,15 @@
 
 EXTERN_C const GUID CLSID_VirtualCam;
 
-#include "shared-memory-queue.h"
-#include "Placeholder.h"
+#include "shared_memory_queue.hpp"
+#include "placeholder.hpp"
+#include "constants.hpp"
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
-
-static const std::string name = "ShareTheBoard Virtual Camera";
-static const auto wname = std::wstring(name.begin(), name.end());
+#include "logger.hpp"
 
 class CVCamStream;
 class CVCam : public CSource
@@ -29,6 +28,8 @@ public:
 
 private:
     CVCam(LPUNKNOWN lpunk, HRESULT* phr);
+
+    std::shared_ptr<spdlog::logger> m_logger;
 };
 
 class CVCamStream : public CSourceStream, public IAMStreamConfig, public IKsPropertySet
@@ -65,7 +66,7 @@ public:
     //////////////////////////////////////////////////////////////////////////
     //  CSourceStream
     //////////////////////////////////////////////////////////////////////////
-    CVCamStream(HRESULT* phr, CVCam* pParent, LPCWSTR pPinName);
+    CVCamStream(HRESULT* phr, CVCam* pParent, LPCWSTR pPinName, std::shared_ptr<content_camera::logger> logger);
     ~CVCamStream();
 
     HRESULT FillBuffer(IMediaSample* pms);
@@ -82,19 +83,24 @@ private:
     HBITMAP m_hLogoBmp;
     CCritSec m_cSharedState;
     IReferenceClock* m_pClock;
-    video_queue_t* vq{ nullptr };
+    std::shared_ptr<shared_queue::video_queue_t> vq;
+    std::unique_ptr<shared_queue::video_queue_reader> m_vq_reader;
 
-    queue_state prev_state{ SHARED_QUEUE_STATE_INVALID };
+    shared_queue::queue_state prev_state{ shared_queue::queue_state::invalid };
     uint32_t cx = 1920;
     uint32_t cy = 1080;
     uint64_t interval = 333333ULL;
-    std::vector<uint8_t> prev_frame;
-    Placeholder placeholder;
+
+    shared_queue::queue_info m_info = {1920, 1080, 333333ULL };
+
+    placeholder m_placeholder;
     uint32_t id;
     std::unique_ptr<std::thread> keep_alive_thread;
     bool is_keep_alive{ true };
     std::mutex m;
     std::condition_variable cv;
+
+    std::shared_ptr<content_camera::logger> m_logger;
 };
 
 
