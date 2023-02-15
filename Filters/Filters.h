@@ -7,12 +7,15 @@ EXTERN_C const GUID CLSID_VirtualCam;
 #include "shared_memory_queue.hpp"
 #include "placeholder.hpp"
 #include "constants.hpp"
+#include "logger.hpp"
+#include "message_client.hpp"
+#include "message.hpp"
+
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
-#include "logger.hpp"
 
 class CVCamStream;
 class CVCam : public CSource
@@ -30,6 +33,7 @@ private:
     CVCam(LPUNKNOWN lpunk, HRESULT* phr);
 
     std::shared_ptr<spdlog::logger> m_logger;
+    std::shared_ptr<message_client> m_message_client;
 };
 
 class CVCamStream : public CSourceStream, public IAMStreamConfig, public IKsPropertySet
@@ -66,7 +70,7 @@ public:
     //////////////////////////////////////////////////////////////////////////
     //  CSourceStream
     //////////////////////////////////////////////////////////////////////////
-    CVCamStream(HRESULT* phr, CVCam* pParent, LPCWSTR pPinName, std::shared_ptr<content_camera::logger> logger);
+    CVCamStream(HRESULT* phr, CVCam* pParent, LPCWSTR pPinName, std::shared_ptr<message_client> m_message_client,  std::shared_ptr<content_camera::logger> logger);
     ~CVCamStream();
 
     HRESULT FillBuffer(IMediaSample* pms);
@@ -76,6 +80,9 @@ public:
     HRESULT SetMediaType(const CMediaType* pmt);
     HRESULT OnThreadCreate(void);
     HRESULT OnThreadDestroy(void);
+
+private:
+    void sendCameraStatus(camera_status_enum st, uint32_t id);
 
 private:
     CVCam* m_pParent;
@@ -101,6 +108,7 @@ private:
     std::condition_variable cv;
 
     std::shared_ptr<content_camera::logger> m_logger;
+    std::shared_ptr<message_client> m_message_client;
 };
 
 

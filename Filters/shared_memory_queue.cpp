@@ -49,9 +49,7 @@ bool shared_queue::video_circular_queue::close()
 		m_logger->warn("Cannot close video queue: already closed");
 		return false;
 	}
-	if (m_queue->is_writer) {
-		m_queue->header->state = queue_state::stopping;
-	}
+	m_queue->header->state = queue_state::stopping;
 
 	UnmapViewOfFile(m_queue->header);
 	CloseHandle(m_queue->handle);
@@ -102,13 +100,13 @@ bool shared_queue::video_queue_reader::open()
 {
 	auto vq = std::make_unique<video_queue>();
 
-	vq->handle = OpenFileMappingW(FILE_MAP_READ, false, VIDEO_NAME);
+	vq->handle = OpenFileMappingW(FILE_MAP_ALL_ACCESS, false, VIDEO_NAME);
 	if (!vq->handle) {
 		return false;
 	}
 
 	vq->header = (queue_header*)MapViewOfFile(
-		vq->handle, FILE_MAP_READ, 0, 0, 0);
+		vq->handle, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 	if (!vq->header) {
 		m_logger->error("Cannot open video queue: MapVidevOfFile failed");
 		CloseHandle(vq->handle);

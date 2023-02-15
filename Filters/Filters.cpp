@@ -22,39 +22,31 @@ const GUID MEDIASUBTYPE_I420 = { 0x30323449,
                 {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b,
                  0x71} };
 
-template<typename M>
-void sendMessage(M nessage)
-{
-    HANDLE hPipe;
-    DWORD dwWritten;
-
-    hPipe = CreateFile(TEXT("\\\\.\\pipe\\StbVirtualCameraPipeline"),
-        GENERIC_READ | GENERIC_WRITE,
-        0,
-        NULL,
-        OPEN_EXISTING,
-        0,
-        NULL);
-
-    if (hPipe != INVALID_HANDLE_VALUE)
-    {
-        WriteFile(hPipe,
-            (uint8_t*)&nessage,
-            sizeof(M),
-            &dwWritten,
-            NULL);
-
-        CloseHandle(hPipe);
-    }
-}
-
-void sendCameraStatus(camera_status_enum st, uint32_t id)
-{
-    message_camera_status status(id);
-    status.payload = st;
-    sendMessage<message_camera_status>(status);
-    //TRY_LOG(info("send camera status {}", magic_enum::enum_name(st)));
-}
+//template<typename M>
+//void sendMessage(M nessage)
+//{
+//    HANDLE hPipe;
+//    DWORD dwWritten;
+//
+//    hPipe = CreateFile(TEXT("\\\\.\\pipe\\StbVirtualCameraPipeline"),
+//        GENERIC_READ | GENERIC_WRITE,
+//        0,
+//        NULL,
+//        OPEN_EXISTING,
+//        0,
+//        NULL);
+//
+//    if (hPipe != INVALID_HANDLE_VALUE)
+//    {
+//        WriteFile(hPipe,
+//            (uint8_t*)&nessage,
+//            sizeof(M),
+//            &dwWritten,
+//            NULL);
+//
+//        CloseHandle(hPipe);
+//    }
+//}
 
 #define NAME(_x_) ((LPTSTR) NULL)
 
@@ -75,7 +67,9 @@ CVCam::CVCam(LPUNKNOWN lpunk, HRESULT* phr) :
     CAutoLock cAutoLock(&m_cStateLock);
     // Create the one and only output pin
     m_paStreams = (CSourceStream**) new CVCamStream * [1];
-    m_paStreams[0] = new CVCamStream(phr, this, wname.c_str(), std::make_shared<content_camera::logger>());
+    auto logger = std::make_shared<content_camera::logger>();
+    auto message_server = std::make_shared<message_client>();
+    m_paStreams[0] = new CVCamStream(phr, this, wname.c_str(), message_server, logger);
 }
 
 HRESULT CVCam::QueryInterface(REFIID riid, void** ppv)
@@ -91,8 +85,8 @@ HRESULT CVCam::QueryInterface(REFIID riid, void** ppv)
 // CVCamStream is the one and only output pin of CVCam which handles 
 // all the stuff.
 //////////////////////////////////////////////////////////////////////////
-CVCamStream::CVCamStream(HRESULT* phr, CVCam* pParent, LPCWSTR pPinName, std::shared_ptr<content_camera::logger> logger):
-    CSourceStream(NAME(name.c_str()), phr, pParent, pPinName), m_pParent(pParent), m_logger{ logger }
+CVCamStream::CVCamStream(HRESULT* phr, CVCam* pParent, LPCWSTR pPinName, std::shared_ptr<message_client> message_client, std::shared_ptr<content_camera::logger> logger):
+    CSourceStream(NAME(name.c_str()), phr, pParent, pPinName), m_pParent(pParent), m_message_client{ message_client }, m_logger{ logger }
 {
     // Set the default media type as 320x240x24@15
     GetMediaType(4, &m_mt);
@@ -106,10 +100,10 @@ CVCamStream::CVCamStream(HRESULT* phr, CVCam* pParent, LPCWSTR pPinName, std::sh
         {
             while (is_keep_alive)
             {
-                sendMessage(message_keep_alive(id));
+                m_message_client->send_message(message_keep_alive(id));
+                m_logger->info("Send keepalive");
                 std::unique_lock<std::mutex> lk(m);
                 cv.wait_for(lk, std::chrono::milliseconds(5000), [&] { return !is_keep_alive; });
-                m_logger->info("Send keepalive");
             }
         });
     m_logger->info("CVCamStream::ctor");
@@ -204,7 +198,7 @@ HRESULT CVCamStream::FillBuffer(IMediaSample* pms)
                     pData[i] = rand();
             }
             m_vq_reader->close();
-            prev_state = shared_queue::queue_state::invalid;
+            prev_state = shared_queue::queue_state::stopping;
         }
     }
     else
@@ -221,7 +215,7 @@ HRESULT CVCamStream::FillBuffer(IMediaSample* pms)
         }
     }
 
-    return NOERROR;
+    return S_OK;
 } // FillBuffer
 
 
@@ -454,4 +448,12 @@ HRESULT CVCamStream::QuerySupported(REFGUID guidPropSet, DWORD dwPropID, DWORD* 
     // We support getting this property, but not setting it.
     if (pTypeSupport) *pTypeSupport = KSPROPERTY_SUPPORT_GET;
     return S_OK;
+}
+
+void CVCamStream::sendCameraStatus(camera_status_enum st, uint32_t id)
+{
+    message_camera_status status(id);
+    status.payload = st;
+    m_message_client->send_message(status);
+    m_logger->info("send camera status {}", magic_enum::enum_name(st));
 }
